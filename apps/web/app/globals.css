@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@theme {
+  --color-base: #100e1c;
+  --color-surface: #241f38;
+  --color-ink: #f1e8da;
+  --color-muted: #7c88a3;
+  --color-accent: #ec7195;
+  --color-accent-muted: #4c4a78;
+  --color-on-accent: #140f1f;
+}
+
+:root,
+[data-theme="dark"] {
+  --color-base: #100e1c;
+  --color-surface: #241f38;
+  --color-ink: #f1e8da;
+  --color-muted: #7c88a3;
+  --color-accent: #ec7195;
+  --color-accent-muted: #4c4a78;
+  --color-on-accent: #140f1f;
+}
+
+[data-theme="light"] {
+  --color-base: #f6f6fb;
+  --color-surface: #ffffff;
+  --color-ink: #17172b;
+  --color-muted: #5b6270;
+  --color-accent: #d6417a;
+  --color-accent-muted: #ece9fa;
+  --color-on-accent: #140f1f;
+}
+
+body {
+  background: var(--color-base);
+  color: var(--color-ink);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+body,
+[class*="bg-surface"],
+[class*="bg-base"],
+[class*="border-muted"],
+[class*="text-ink"],
+[class*="text-muted"] {
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+@keyframes wave-flow {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.light-background {
+  display: none;
+  background: linear-gradient(160deg, #f6f6fb 0%, #eef0fa 50%, #f3edf8 100%);
+}
+
+.wave-background {
+  display: block;
+}
+
+[data-theme="light"] .light-background {
+  display: block;
+}
+
+[data-theme="light"] .wave-background {
+  display: none;
+}

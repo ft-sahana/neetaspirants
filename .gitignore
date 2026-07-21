@@ -1,0 +1,25 @@
+# Node / Next.js
+node_modules/
+.next/
+apps/web/.env*.local
+
+# Java / Maven
+target/
+*.class
+apps/api/.mvn/wrapper/maven-wrapper.jar
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Infra local state
+infra/qdrant/storage/
+infra/qdrant/bin/qdrant
+infra/.mysql_app_credentials.local
+*.local
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
