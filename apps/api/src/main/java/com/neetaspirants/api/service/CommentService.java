@@ -21,15 +21,21 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final AnonymousProfileRepository profileRepository;
+    private final NotificationService notificationService;
+    private final MentionParser mentionParser;
 
     public CommentService(
             CommentRepository commentRepository,
             PostRepository postRepository,
-            AnonymousProfileRepository profileRepository
+            AnonymousProfileRepository profileRepository,
+            NotificationService notificationService,
+            MentionParser mentionParser
     ) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.profileRepository = profileRepository;
+        this.notificationService = notificationService;
+        this.mentionParser = mentionParser;
     }
 
     @Transactional
@@ -44,18 +50,42 @@ public class CommentService {
         comment.setAuthorProfile(profile);
         comment.setBody(request.body());
 
+        Comment parent = null;
         if (request.parentCommentId() != null) {
-            Comment parent = commentRepository.findById(request.parentCommentId())
+            parent = commentRepository.findById(request.parentCommentId())
                     .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Parent comment not found"));
             comment.setParentComment(parent);
         }
 
         comment = commentRepository.save(comment);
 
+        notifyReply(post, parent, profile, comment);
+        notifyMentions(post, profile, comment.getBody());
+
         return new CommentDto(
                 comment.getId(), comment.getBody(), profile.getAlias(), comment.getScore(),
                 comment.getCreatedAt(), request.parentCommentId(), List.of()
         );
+    }
+
+    private void notifyReply(Post post, Comment parent, AnonymousProfile author, Comment comment) {
+        AnonymousProfile recipient = parent != null ? parent.getAuthorProfile() : post.getAuthorProfile();
+        if (recipient == null) return;
+        notificationService.notifyReply(
+                recipient.getId(), author.getId(), author.getAlias(),
+                post.getSlug(), post.getSubforum().getSlug(), comment.getBody()
+        );
+    }
+
+    private void notifyMentions(Post post, AnonymousProfile author, String body) {
+        for (String alias : mentionParser.extractAliases(body)) {
+            profileRepository.findByAlias(alias).ifPresent(mentioned ->
+                    notificationService.notifyMention(
+                            mentioned.getId(), author.getId(), author.getAlias(),
+                            post.getSlug(), post.getSubforum().getSlug(), body
+                    )
+            );
+        }
     }
 
     @Transactional

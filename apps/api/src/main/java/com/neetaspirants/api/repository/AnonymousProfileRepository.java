@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface AnonymousProfileRepository extends JpaRepository<AnonymousProfile, Long> {
     boolean existsByAlias(String alias);
     Optional<AnonymousProfile> findByUserId(Long userId);
+    Optional<AnonymousProfile> findByAlias(String alias);
 }

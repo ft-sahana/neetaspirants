@@ -7,11 +7,13 @@ import { useTheme } from "@/components/ThemeProvider";
 import ThemeToggle from "@/components/ThemeToggle";
 import NavIcon from "@/components/NavIcons";
 import { NAV_ITEMS, isNavItemActive } from "@/lib/navItems";
+import { useUnreadNotifications } from "@/lib/useUnreadNotifications";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { profile, ready, logout } = useAuth();
   const { theme } = useTheme();
+  const unreadCount = useUnreadNotifications();
 
   return (
     <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-muted/20 bg-surface px-4 py-6 md:flex">
@@ -30,7 +32,14 @@ export default function Sidebar() {
                 active ? "bg-accent-muted text-ink" : "text-muted hover:bg-base hover:text-ink"
               }`}
             >
-              <NavIcon name={item.icon} />
+              <span className="relative flex">
+                <NavIcon name={item.icon} />
+                {item.key === "notifications" && unreadCount > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-semibold leading-none text-on-accent">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </span>
               {item.label}
             </Link>
           );

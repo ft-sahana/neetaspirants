@@ -17,17 +17,20 @@ public class VoteService {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final AnonymousProfileRepository profileRepository;
+    private final NotificationService notificationService;
 
     public VoteService(
             VoteRepository voteRepository,
             PostRepository postRepository,
             CommentRepository commentRepository,
-            AnonymousProfileRepository profileRepository
+            AnonymousProfileRepository profileRepository,
+            NotificationService notificationService
     ) {
         this.voteRepository = voteRepository;
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.profileRepository = profileRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -42,6 +45,7 @@ public class VoteService {
         Vote vote = voteRepository
                 .findByVotableTypeAndVotableIdAndProfileId(votableType, votableId, profileId)
                 .orElseGet(Vote::new);
+        boolean alreadyUpvoted = vote.getId() != null && vote.getValue() == 1;
 
         if (value == 0) {
             if (vote.getId() != null) voteRepository.delete(vote);
@@ -54,23 +58,42 @@ public class VoteService {
         }
 
         int newScore = voteRepository.sumScoreFor(votableType, votableId);
-        applyScore(votableType, votableId, newScore);
+        ScoreTarget target = applyScore(votableType, votableId, newScore);
+
+        if (value == 1 && !alreadyUpvoted) {
+            notifyUpvote(votableType, target, profile);
+        }
+
         return newScore;
     }
 
-    private void applyScore(VotableType type, Long id, int newScore) {
+    private void notifyUpvote(VotableType type, ScoreTarget target, AnonymousProfile voter) {
+        if (target.author() == null || target.post() == null) return;
+        if (target.author().getId().equals(voter.getId())) return; // don't notify yourself
+        String targetKind = type == VotableType.POST ? "post" : "comment";
+        notificationService.notifyUpvote(
+                target.author().getId(), voter.getId(), voter.getAlias(), targetKind,
+                target.post().getSlug(), target.post().getSubforum().getSlug()
+        );
+    }
+
+    private ScoreTarget applyScore(VotableType type, Long id, int newScore) {
         if (type == VotableType.POST) {
             Post post = postRepository.findById(id)
                     .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Post not found"));
             post.setScore(newScore);
             postRepository.save(post);
+            return new ScoreTarget(post.getAuthorProfile(), post);
         } else {
             Comment comment = commentRepository.findById(id)
                     .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Comment not found"));
             comment.setScore(newScore);
             commentRepository.save(comment);
+            return new ScoreTarget(comment.getAuthorProfile(), comment.getPost());
         }
     }
+
+    private record ScoreTarget(AnonymousProfile author, Post post) {}
 
     private VotableType parseType(String raw) {
         try {

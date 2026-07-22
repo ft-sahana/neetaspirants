@@ -31,6 +31,8 @@ public class PostService {
     private final SlugGenerator slugGenerator;
     private final EmbeddingClient embeddingClient;
     private final QdrantClient qdrantClient;
+    private final NotificationService notificationService;
+    private final MentionParser mentionParser;
 
     public PostService(
             PostRepository postRepository,
@@ -39,7 +41,9 @@ public class PostService {
             CommentRepository commentRepository,
             SlugGenerator slugGenerator,
             EmbeddingClient embeddingClient,
-            QdrantClient qdrantClient
+            QdrantClient qdrantClient,
+            NotificationService notificationService,
+            MentionParser mentionParser
     ) {
         this.postRepository = postRepository;
         this.subforumRepository = subforumRepository;
@@ -48,6 +52,8 @@ public class PostService {
         this.slugGenerator = slugGenerator;
         this.embeddingClient = embeddingClient;
         this.qdrantClient = qdrantClient;
+        this.notificationService = notificationService;
+        this.mentionParser = mentionParser;
     }
 
     @Transactional(readOnly = true)
@@ -95,11 +101,23 @@ public class PostService {
         post = postRepository.save(post);
 
         indexForSearch(post);
+        notifyMentions(post, profile);
 
         return new PostDetailDto(
                 post.getId(), post.getSlug(), post.getTitle(), post.getBody(),
                 profile.getAlias(), subforum.getSlug(), post.getScore(), post.getCreatedAt(), List.of()
         );
+    }
+
+    private void notifyMentions(Post post, AnonymousProfile author) {
+        for (String alias : mentionParser.extractAliases(post.getBody())) {
+            profileRepository.findByAlias(alias).ifPresent(mentioned ->
+                    notificationService.notifyMention(
+                            mentioned.getId(), author.getId(), author.getAlias(),
+                            post.getSlug(), post.getSubforum().getSlug(), post.getBody()
+                    )
+            );
+        }
     }
 
     @Transactional
