@@ -42,7 +42,7 @@ export default function FloatingHelpChat() {
   }
 
   return (
-    <div className="fixed bottom-24 left-4 z-30 md:bottom-8">
+    <div className="fixed bottom-40 right-4 z-30 md:bottom-24 md:right-8">
       {open && (
         <div className="mb-3 flex h-96 w-80 flex-col overflow-hidden rounded-2xl border border-muted/20 bg-surface shadow-xl">
           <div className="flex items-center justify-between border-b border-muted/20 px-4 py-3">
