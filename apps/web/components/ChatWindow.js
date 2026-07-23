@@ -12,6 +12,7 @@ export default function ChatWindow({ room }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [typingAlias, setTypingAlias] = useState(null);
+  const [onlineAliases, setOnlineAliases] = useState([]);
   const typingTimeout = useRef(null);
   const bottomRef = useRef(null);
 
@@ -21,7 +22,22 @@ export default function ChatWindow({ room }) {
   }, [room.id, token]);
 
   useEffect(() => {
+    setOnlineAliases([]);
+    apiFetch(`/chat/rooms/${room.id}/presence`, { token })
+      .then((event) => setOnlineAliases(event.onlineAliases || []))
+      .catch(() => {});
+  }, [room.id, token]);
+
+  useEffect(() => {
     if (!client || !connected) return;
+
+    // Subscribe to presence first: the server broadcasts presence as a side
+    // effect of the room-topic subscribe below, so this must already be
+    // listening or it misses its own initial broadcast.
+    const presenceSub = client.subscribe(`/topic/room/${room.id}/presence`, (frame) => {
+      const event = JSON.parse(frame.body);
+      setOnlineAliases(event.onlineAliases || []);
+    });
 
     const messageSub = client.subscribe(`/topic/room/${room.id}`, (frame) => {
       const message = JSON.parse(frame.body);
@@ -41,6 +57,8 @@ export default function ChatWindow({ room }) {
     return () => {
       messageSub.unsubscribe();
       typingSub.unsubscribe();
+      presenceSub.unsubscribe();
+      setOnlineAliases([]);
     };
   }, [client, connected, room.id, profile?.alias]);
 
@@ -72,7 +90,11 @@ export default function ChatWindow({ room }) {
         <div className="font-medium text-ink">{room.name || "Direct message"}</div>
         {room.topic && <div className="text-xs text-muted">{room.topic}</div>}
         <div className="text-xs text-muted">
-          {connected ? "online" : "connecting…"}
+          {!connected
+            ? "connecting…"
+            : onlineAliases.length > 0
+              ? `${onlineAliases.length} online · ${onlineAliases.join(", ")}`
+              : "online"}
         </div>
       </div>
 

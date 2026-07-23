@@ -25,8 +25,11 @@ public class ChatRestController {
     }
 
     @GetMapping("/rooms/discover")
-    public List<ChatRoomDto> discoverGroupRooms() {
-        return chatService.listGroupRooms();
+    public List<ChatRoomDto> discoverGroupRooms(
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String category
+    ) {
+        return chatService.listGroupRooms(sort, category);
     }
 
     @PostMapping("/rooms/group")
@@ -59,5 +62,10 @@ public class ChatRestController {
             @PathVariable Long roomId
     ) {
         return chatService.getHistory(roomId, principal.profileId());
+    }
+
+    @GetMapping("/rooms/{roomId}/presence")
+    public PresenceEvent presence(@PathVariable Long roomId) {
+        return chatService.getPresence(roomId);
     }
 }

@@ -8,6 +8,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -19,22 +22,62 @@ public class ChatService {
     private final ChatRoomMemberRepository memberRepository;
     private final ChatMessageRepository messageRepository;
     private final AnonymousProfileRepository profileRepository;
+    private final RoomPresenceService presenceService;
 
     public ChatService(
             ChatRoomRepository roomRepository,
             ChatRoomMemberRepository memberRepository,
             ChatMessageRepository messageRepository,
-            AnonymousProfileRepository profileRepository
+            AnonymousProfileRepository profileRepository,
+            RoomPresenceService presenceService
     ) {
         this.roomRepository = roomRepository;
         this.memberRepository = memberRepository;
         this.messageRepository = messageRepository;
         this.profileRepository = profileRepository;
+        this.presenceService = presenceService;
     }
 
     @Transactional(readOnly = true)
-    public List<ChatRoomDto> listGroupRooms() {
-        return roomRepository.findByType(ChatRoomType.GROUP).stream().map(this::toDto).toList();
+    public List<ChatRoomDto> listGroupRooms(String sort, String category) {
+        List<ChatRoom> rooms = roomRepository.findByType(ChatRoomType.GROUP);
+
+        if (category != null && !category.isBlank() && !category.equalsIgnoreCase("All")) {
+            rooms = rooms.stream()
+                    .filter(r -> category.equalsIgnoreCase(r.getCategory()))
+                    .toList();
+        }
+
+        if ("scheduled".equalsIgnoreCase(sort)) {
+            Instant now = Instant.now();
+            return rooms.stream()
+                    .filter(r -> r.getScheduledFor() != null && r.getScheduledFor().isAfter(now))
+                    .sorted(Comparator.comparing(ChatRoom::getScheduledFor))
+                    .map(this::toDto)
+                    .toList();
+        }
+
+        if ("trending".equalsIgnoreCase(sort)) {
+            Instant since = Instant.now().minus(24, ChronoUnit.HOURS);
+            return rooms.stream()
+                    .sorted(Comparator.comparingLong(
+                            (ChatRoom r) -> messageRepository.countByRoomIdAndCreatedAtAfter(r.getId(), since)
+                    ).reversed())
+                    .map(this::toDto)
+                    .toList();
+        }
+
+        if ("active".equalsIgnoreCase(sort)) {
+            return rooms.stream()
+                    .sorted(Comparator.comparing(this::lastActivityOrCreated).reversed())
+                    .map(this::toDto)
+                    .toList();
+        }
+
+        return rooms.stream()
+                .sorted(Comparator.comparing(ChatRoom::getCreatedAt).reversed())
+                .map(this::toDto)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -51,6 +94,8 @@ public class ChatService {
         room.setType(ChatRoomType.GROUP);
         room.setName(request.name());
         room.setTopic(request.topic());
+        room.setCategory(request.category());
+        room.setScheduledFor(request.scheduledFor());
         room = roomRepository.save(room);
         addMember(room, creatorProfileId);
         return toDto(room);
@@ -98,6 +143,10 @@ public class ChatService {
                 .toList();
     }
 
+    public PresenceEvent getPresence(Long roomId) {
+        return new PresenceEvent(presenceService.onlineAliases(roomId));
+    }
+
     @Transactional
     public ChatMessageDto sendMessage(Long roomId, Long senderProfileId, String body) {
         ChatRoom room = roomRepository.findById(roomId)
@@ -120,6 +169,9 @@ public class ChatService {
         message.setSenderProfile(sender);
         message.setBody(body);
         message = messageRepository.save(message);
+
+        room.setLastActivityAt(message.getCreatedAt());
+        roomRepository.save(room);
 
         return toDto(message);
     }
@@ -150,7 +202,17 @@ public class ChatService {
     }
 
     private ChatRoomDto toDto(ChatRoom room) {
-        return new ChatRoomDto(room.getId(), room.getType().name(), room.getName(), room.getTopic(), room.getCreatedAt());
+        long memberCount = memberRepository.countByRoomId(room.getId());
+        int onlineCount = presenceService.onlineCount(room.getId());
+        return new ChatRoomDto(
+                room.getId(), room.getType().name(), room.getName(), room.getTopic(), room.getCategory(),
+                room.getCreatedAt(), lastActivityOrCreated(room), room.getScheduledFor(),
+                memberCount, onlineCount, onlineCount > 0
+        );
+    }
+
+    private Instant lastActivityOrCreated(ChatRoom room) {
+        return room.getLastActivityAt() != null ? room.getLastActivityAt() : room.getCreatedAt();
     }
 
     private ChatMessageDto toDto(ChatMessage message) {

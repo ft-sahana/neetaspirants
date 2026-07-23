@@ -26,6 +26,12 @@ public class ChatRoom {
 
     private String topic;
 
+    private String category;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
+
+    private Instant lastActivityAt = Instant.now();
+
+    private Instant scheduledFor;
 }

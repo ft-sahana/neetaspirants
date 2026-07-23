@@ -5,8 +5,16 @@ import { useRouter } from "next/navigation";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { colorForSlug } from "@/lib/subforumTheme";
+import { COMMUNITY_CATEGORIES } from "@/lib/communityCategories";
 
 const PAGE_COLOR = "#00e5ff";
+
+const SORTS = [
+  { key: "active", label: "Recently Active" },
+  { key: "trending", label: "Trending" },
+  { key: "new", label: "New" },
+  { key: "scheduled", label: "Scheduled" },
+];
 
 export default function RoomsPage() {
   const { token, profile, ready } = useAuth();
@@ -14,13 +22,20 @@ export default function RoomsPage() {
 
   const [rooms, setRooms] = useState([]);
   const [myRoomIds, setMyRoomIds] = useState(new Set());
+  const [sort, setSort] = useState("active");
+  const [category, setCategory] = useState("All");
   const [name, setName] = useState("");
   const [topic, setTopic] = useState("");
+  const [roomCategory, setRoomCategory] = useState(COMMUNITY_CATEGORIES[0]);
+  const [scheduling, setScheduling] = useState(false);
+  const [scheduledFor, setScheduledFor] = useState("");
   const [error, setError] = useState(null);
 
   async function loadRooms() {
+    const params = new URLSearchParams({ sort });
+    if (category !== "All") params.set("category", category);
     const [discover, mine] = await Promise.all([
-      apiFetch("/chat/rooms/discover"),
+      apiFetch(`/chat/rooms/discover?${params.toString()}`),
       token ? apiFetch("/chat/rooms", { token }) : Promise.resolve([]),
     ]);
     setRooms(discover);
@@ -30,7 +45,7 @@ export default function RoomsPage() {
   useEffect(() => {
     loadRooms();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, sort, category]);
 
   async function joinRoom(roomId) {
     if (!profile) {
@@ -52,10 +67,17 @@ export default function RoomsPage() {
       const room = await apiFetch("/chat/rooms/group", {
         method: "POST",
         token,
-        body: JSON.stringify({ name, topic }),
+        body: JSON.stringify({
+          name,
+          topic,
+          category: roomCategory,
+          scheduledFor: scheduling && scheduledFor ? new Date(scheduledFor).toISOString() : null,
+        }),
       });
       setName("");
       setTopic("");
+      setScheduling(false);
+      setScheduledFor("");
       router.push(`/chat?roomId=${room.id}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not create room");
@@ -76,24 +98,77 @@ export default function RoomsPage() {
         </p>
       </div>
 
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        {SORTS.map((s) => (
+          <button
+            key={s.key}
+            onClick={() => setSort(s.key)}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+              sort === s.key ? "text-on-accent" : "border border-muted/20 text-muted hover:text-ink"
+            }`}
+            style={sort === s.key ? { background: PAGE_COLOR } : undefined}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {["All", ...COMMUNITY_CATEGORIES].map((c) => (
+          <button
+            key={c}
+            onClick={() => setCategory(c)}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              category === c
+                ? "border-accent bg-accent-muted text-ink"
+                : "border-muted/20 text-muted hover:text-ink"
+            }`}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+
       <div className="mt-6 flex flex-col gap-6 sm:flex-row">
         <div className="min-w-0 flex-1">
           <div className="flex flex-col gap-3">
             {rooms.map((room) => {
               const color = colorForSlug(room.name);
+              const isScheduled = room.scheduledFor && new Date(room.scheduledFor) > new Date();
               return (
                 <div
                   key={room.id}
-                  className="flex items-center justify-between rounded-xl border border-muted/20 bg-surface p-4"
+                  className="flex items-center justify-between gap-4 rounded-xl border border-muted/20 bg-surface p-4"
                   style={{ boxShadow: `inset 3px 0 0 0 ${color}` }}
                 >
-                  <div>
-                    <div className="font-medium text-ink">{room.name}</div>
-                    {room.topic && <div className="text-sm text-muted">{room.topic}</div>}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-ink">{room.name}</span>
+                      {room.live && (
+                        <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
+                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                          live
+                        </span>
+                      )}
+                      {room.category && (
+                        <span
+                          className="rounded-full px-2 py-0.5 text-xs font-medium"
+                          style={{ background: `${color}26`, color }}
+                        >
+                          {room.category}
+                        </span>
+                      )}
+                    </div>
+                    {room.topic && <div className="mt-0.5 text-sm text-muted">{room.topic}</div>}
+                    <div className="mt-1 text-xs text-muted">
+                      {room.memberCount} member{room.memberCount === 1 ? "" : "s"}
+                      {room.onlineCount > 0 && ` · ${room.onlineCount} online`}
+                      {isScheduled && ` · starts ${new Date(room.scheduledFor).toLocaleString()}`}
+                    </div>
                   </div>
                   <button
                     onClick={() => joinRoom(room.id)}
-                    className="rounded-full px-4 py-1.5 text-sm font-medium text-on-accent hover:opacity-90"
+                    className="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium text-on-accent hover:opacity-90"
                     style={{ background: myRoomIds.has(room.id) ? "var(--color-accent-muted)" : color, color: myRoomIds.has(room.id) ? undefined : "#0a0a12" }}
                   >
                     {myRoomIds.has(room.id) ? "Open" : "Join"}
@@ -138,9 +213,39 @@ export default function RoomsPage() {
               <input
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
-                placeholder="Topic (optional)"
+                placeholder="Description (optional)"
                 className="rounded-lg border border-muted/30 bg-base px-3 py-2 text-sm text-ink outline-none focus:border-accent"
               />
+              <select
+                value={roomCategory}
+                onChange={(e) => setRoomCategory(e.target.value)}
+                className="rounded-lg border border-muted/30 bg-base px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+              >
+                {COMMUNITY_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+
+              <label className="flex items-center gap-2 text-xs text-muted">
+                <input
+                  type="checkbox"
+                  checked={scheduling}
+                  onChange={(e) => setScheduling(e.target.checked)}
+                />
+                Schedule for later
+              </label>
+              {scheduling && (
+                <input
+                  type="datetime-local"
+                  required
+                  value={scheduledFor}
+                  onChange={(e) => setScheduledFor(e.target.value)}
+                  className="rounded-lg border border-muted/30 bg-base px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                />
+              )}
+
               {error && <p className="text-sm text-accent">{error}</p>}
               <button
                 type="submit"
