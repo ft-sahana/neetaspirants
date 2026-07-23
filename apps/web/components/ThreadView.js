@@ -36,6 +36,14 @@ export default function ThreadView({ post, onChanged }) {
           <h1 className="text-xl font-semibold text-ink">{post.title}</h1>
           <div className="mt-1 text-xs text-muted">Posted by {post.authorAlias}</div>
           <p className="mt-3 whitespace-pre-wrap text-sm text-ink">{post.body}</p>
+          {post.imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={post.imageUrl}
+              alt=""
+              className="mt-3 max-h-[32rem] w-full rounded-lg border border-muted/20 object-contain"
+            />
+          )}
         </div>
       </div>
 

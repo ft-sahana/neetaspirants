@@ -45,7 +45,9 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/v1/help/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/subforums/**", "/api/v1/posts/**", "/api/v1/search/**", "/api/v1/chat/rooms/discover").permitAll()
                         .anyRequest().authenticated()
                 )

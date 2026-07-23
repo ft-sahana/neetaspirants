@@ -15,12 +15,12 @@ public class ForumDtos {
     ) {}
 
     public record PostSummaryDto(
-            Long id, String slug, String title, String bodyExcerpt, String authorAlias,
+            Long id, String slug, String title, String bodyExcerpt, String imageUrl, String authorAlias,
             String subforumSlug, int score, long commentCount, Instant createdAt
     ) {}
 
     public record PostDetailDto(
-            Long id, String slug, String title, String body, String authorAlias,
+            Long id, String slug, String title, String body, String imageUrl, String authorAlias,
             String subforumSlug, int score, Instant createdAt, List<CommentDto> comments
     ) {}
 
@@ -32,7 +32,8 @@ public class ForumDtos {
     public record CreatePostRequest(
             @NotBlank String subforumSlug,
             @NotBlank @Size(max = 300) String title,
-            @NotBlank String body
+            @NotBlank String body,
+            String imageUrl
     ) {}
 
     public record CreateCommentRequest(

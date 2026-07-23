@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { apiFetch, ApiError } from "@/lib/api";
+import { apiFetch, uploadImage, ApiError } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 
 export default function CreatePostPage() {
@@ -22,6 +22,8 @@ function CreatePostPageInner() {
   const [subforumSlug, setSubforumSlug] = useState(searchParams.get("subforum") || "");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [imageUrl, setImageUrl] = useState(null);
+  const [imageUploading, setImageUploading] = useState(false);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -37,6 +39,21 @@ function CreatePostPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function handleImageChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    setImageUploading(true);
+    try {
+      const { url } = await uploadImage(file, token);
+      setImageUrl(url);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not upload image");
+    } finally {
+      setImageUploading(false);
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
@@ -45,7 +62,7 @@ function CreatePostPageInner() {
       const post = await apiFetch("/posts", {
         method: "POST",
         token,
-        body: JSON.stringify({ subforumSlug, title, body }),
+        body: JSON.stringify({ subforumSlug, title, body, imageUrl }),
       });
       router.push(`/c/${post.subforumSlug}?post=${post.slug}`);
     } catch (err) {
@@ -96,11 +113,36 @@ function CreatePostPageInner() {
           />
         </label>
 
+        <label className="flex flex-col gap-1 text-sm text-muted">
+          Image (optional)
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            onChange={handleImageChange}
+            disabled={imageUploading}
+            className="text-sm text-ink file:mr-3 file:rounded-full file:border-0 file:bg-accent-muted file:px-4 file:py-1.5 file:text-sm file:text-ink"
+          />
+          {imageUploading && <span className="text-xs text-muted">Uploading…</span>}
+          {imageUrl && (
+            <div className="relative mt-2 w-fit">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={imageUrl} alt="Upload preview" className="max-h-56 rounded-lg border border-muted/20" />
+              <button
+                type="button"
+                onClick={() => setImageUrl(null)}
+                className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-base text-xs text-ink shadow"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </label>
+
         {error && <p className="text-sm text-accent">{error}</p>}
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || imageUploading}
           className="self-start rounded-full bg-accent px-6 py-2.5 font-medium text-on-accent hover:opacity-90 disabled:opacity-60"
         >
           {submitting ? "Posting…" : "Post"}

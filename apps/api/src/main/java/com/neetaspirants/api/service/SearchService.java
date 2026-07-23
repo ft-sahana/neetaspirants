@@ -49,7 +49,7 @@ public class SearchService {
         String excerpt = post.getBody().length() > 220 ? post.getBody().substring(0, 220) + "…" : post.getBody();
         long commentCount = commentRepository.countByPostId(post.getId());
         return new PostSummaryDto(
-                post.getId(), post.getSlug(), post.getTitle(), excerpt,
+                post.getId(), post.getSlug(), post.getTitle(), excerpt, post.getImageUrl(),
                 post.getAuthorProfile().getAlias(), post.getSubforum().getSlug(),
                 post.getScore(), commentCount, post.getCreatedAt()
         );

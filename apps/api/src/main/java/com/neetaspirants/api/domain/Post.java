@@ -36,6 +36,9 @@ public class Post {
     @Column(nullable = false)
     private String body;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @Column(nullable = false)
     private int score = 0;
 

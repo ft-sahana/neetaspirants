@@ -72,6 +72,14 @@ export default function PostCard({ post, accentColor, showCommunity = true }) {
         {post.bodyExcerpt && (
           <p className="mt-1 line-clamp-2 text-sm text-muted">{post.bodyExcerpt}</p>
         )}
+        {post.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={post.imageUrl}
+            alt=""
+            className="mt-2 max-h-72 w-full rounded-lg border border-muted/20 object-cover"
+          />
+        )}
 
         <div className="mt-3 flex items-center gap-4 text-xs text-muted">
           <span>{post.commentCount ?? 0} comments</span>

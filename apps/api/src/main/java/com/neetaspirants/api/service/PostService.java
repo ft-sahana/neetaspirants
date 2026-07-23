@@ -10,6 +10,8 @@ import com.neetaspirants.api.repository.CommentRepository;
 import com.neetaspirants.api.repository.PostRepository;
 import com.neetaspirants.api.repository.SubforumRepository;
 import com.neetaspirants.api.web.ApiException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -23,6 +25,8 @@ import java.util.Map;
 
 @Service
 public class PostService {
+
+    private static final Logger log = LoggerFactory.getLogger(PostService.class);
 
     private final PostRepository postRepository;
     private final SubforumRepository subforumRepository;
@@ -79,7 +83,7 @@ public class PostService {
         List<CommentDto> tree = buildCommentTree(flatComments);
 
         return new PostDetailDto(
-                post.getId(), post.getSlug(), post.getTitle(), post.getBody(),
+                post.getId(), post.getSlug(), post.getTitle(), post.getBody(), post.getImageUrl(),
                 post.getAuthorProfile().getAlias(), post.getSubforum().getSlug(),
                 post.getScore(), post.getCreatedAt(), tree
         );
@@ -97,6 +101,7 @@ public class PostService {
         post.setAuthorProfile(profile);
         post.setTitle(request.title());
         post.setBody(request.body());
+        post.setImageUrl(request.imageUrl());
         post.setSlug(slugGenerator.generateUnique(request.title(), postRepository::existsBySlug));
         post = postRepository.save(post);
 
@@ -104,7 +109,7 @@ public class PostService {
         notifyMentions(post, profile);
 
         return new PostDetailDto(
-                post.getId(), post.getSlug(), post.getTitle(), post.getBody(),
+                post.getId(), post.getSlug(), post.getTitle(), post.getBody(), post.getImageUrl(),
                 profile.getAlias(), subforum.getSlug(), post.getScore(), post.getCreatedAt(), List.of()
         );
     }
@@ -132,19 +137,25 @@ public class PostService {
     }
 
     private void indexForSearch(Post post) {
-        List<Double> vector = embeddingClient.embed(post.getTitle() + ". " + post.getBody());
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("postId", post.getId());
-        payload.put("subforumSlug", post.getSubforum().getSlug());
-        payload.put("title", post.getTitle());
-        qdrantClient.upsertPoint(post.getId(), vector, payload);
+        // Best-effort: the embeddings/Qdrant services are separate local processes and
+        // may be down. Search indexing failing must not fail post creation itself.
+        try {
+            List<Double> vector = embeddingClient.embed(post.getTitle() + ". " + post.getBody());
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("postId", post.getId());
+            payload.put("subforumSlug", post.getSubforum().getSlug());
+            payload.put("title", post.getTitle());
+            qdrantClient.upsertPoint(post.getId(), vector, payload);
+        } catch (RuntimeException e) {
+            log.warn("Search indexing failed for post {}: {}", post.getId(), e.getMessage());
+        }
     }
 
     private PostSummaryDto toSummary(Post post) {
         String excerpt = post.getBody().length() > 220 ? post.getBody().substring(0, 220) + "…" : post.getBody();
         long commentCount = commentRepository.countByPostId(post.getId());
         return new PostSummaryDto(
-                post.getId(), post.getSlug(), post.getTitle(), excerpt,
+                post.getId(), post.getSlug(), post.getTitle(), excerpt, post.getImageUrl(),
                 post.getAuthorProfile().getAlias(), post.getSubforum().getSlug(),
                 post.getScore(), commentCount, post.getCreatedAt()
         );
