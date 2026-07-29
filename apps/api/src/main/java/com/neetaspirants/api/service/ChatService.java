@@ -84,6 +84,15 @@ public class ChatService {
     public List<ChatRoomDto> listRoomsForProfile(Long profileId) {
         return memberRepository.findByProfileId(profileId).stream()
                 .map(ChatRoomMember::getRoom)
+                .map(room -> toDto(room, profileId))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChatRoomDto> listJoinedGroupRooms(Long profileId) {
+        return memberRepository.findByProfileId(profileId).stream()
+                .map(ChatRoomMember::getRoom)
+                .filter(room -> room.getType() == ChatRoomType.GROUP)
                 .map(this::toDto)
                 .toList();
     }
@@ -123,7 +132,7 @@ public class ChatService {
         for (Long roomId : myRoomIds) {
             ChatRoom room = roomRepository.findById(roomId).orElseThrow();
             if (room.getType() == ChatRoomType.DM) {
-                return toDto(room);
+                return toDto(room, profileId);
             }
         }
 
@@ -132,7 +141,7 @@ public class ChatService {
         room = roomRepository.save(room);
         addMember(room, profileId);
         addMember(room, otherProfileId);
-        return toDto(room);
+        return toDto(room, profileId);
     }
 
     @Transactional(readOnly = true)
@@ -202,12 +211,25 @@ public class ChatService {
     }
 
     private ChatRoomDto toDto(ChatRoom room) {
+        return toDto(room, null);
+    }
+
+    private ChatRoomDto toDto(ChatRoom room, Long viewerProfileId) {
         long memberCount = memberRepository.countByRoomId(room.getId());
         int onlineCount = presenceService.onlineCount(room.getId());
+        String otherAlias = null;
+        if (room.getType() == ChatRoomType.DM && viewerProfileId != null) {
+            otherAlias = memberRepository.findByRoomId(room.getId()).stream()
+                    .map(ChatRoomMember::getProfile)
+                    .filter(p -> !p.getId().equals(viewerProfileId))
+                    .findFirst()
+                    .map(AnonymousProfile::getAlias)
+                    .orElse(null);
+        }
         return new ChatRoomDto(
                 room.getId(), room.getType().name(), room.getName(), room.getTopic(), room.getCategory(),
                 room.getCreatedAt(), lastActivityOrCreated(room), room.getScheduledFor(),
-                memberCount, onlineCount, onlineCount > 0
+                memberCount, onlineCount, onlineCount > 0, otherAlias
         );
     }
 

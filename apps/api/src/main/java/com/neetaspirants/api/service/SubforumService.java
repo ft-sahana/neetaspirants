@@ -92,7 +92,7 @@ public class SubforumService {
         return toDto(subforum, profileId);
     }
 
-    private SubforumDto toDto(Subforum s, Long profileId) {
+    SubforumDto toDto(Subforum s, Long profileId) {
         long memberCount = membershipRepository.countBySubforumId(s.getId());
         boolean joined = profileId != null && membershipRepository.existsBySubforumIdAndProfileId(s.getId(), profileId);
         List<String> rules = s.getRules() == null || s.getRules().isBlank()

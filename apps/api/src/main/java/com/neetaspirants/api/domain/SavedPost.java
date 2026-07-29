@@ -8,33 +8,26 @@ import lombok.Setter;
 import java.time.Instant;
 
 @Entity
-@Table(name = "comments")
+@Table(
+        name = "saved_posts",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"profile_id", "post_id"})
+)
 @Getter
 @Setter
 @NoArgsConstructor
-public class Comment {
+public class SavedPost {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "post_id")
-    private Post post;
-
-    @ManyToOne
-    @JoinColumn(name = "parent_comment_id")
-    private Comment parentComment;
+    @JoinColumn(name = "profile_id")
+    private AnonymousProfile profile;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "author_profile_id")
-    private AnonymousProfile authorProfile;
-
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String body;
-
-    @Column(nullable = false)
-    private int score = 0;
+    @JoinColumn(name = "post_id")
+    private Post post;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();

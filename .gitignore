@@ -7,6 +7,8 @@ apps/web/.env*.local
 target/
 *.class
 apps/api/.mvn/wrapper/maven-wrapper.jar
+apps/api/uploads/*
+!apps/api/uploads/.gitkeep
 
 # Python
 .venv/

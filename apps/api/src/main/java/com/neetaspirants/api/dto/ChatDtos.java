@@ -10,7 +10,7 @@ public class ChatDtos {
     public record ChatRoomDto(
             Long id, String type, String name, String topic, String category,
             Instant createdAt, Instant lastActivityAt, Instant scheduledFor,
-            long memberCount, int onlineCount, boolean live
+            long memberCount, int onlineCount, boolean live, String otherAlias
     ) {}
 
     public record ChatMessageDto(Long id, Long roomId, String senderAlias, String body, Instant createdAt) {}

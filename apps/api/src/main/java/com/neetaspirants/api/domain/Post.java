@@ -32,8 +32,7 @@ public class Post {
     @Column(nullable = false, unique = true)
     private String slug;
 
-    @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String body;
 
     @Column(name = "image_url")

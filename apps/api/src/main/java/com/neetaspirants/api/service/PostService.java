@@ -151,7 +151,7 @@ public class PostService {
         }
     }
 
-    private PostSummaryDto toSummary(Post post) {
+    PostSummaryDto toSummary(Post post) {
         String excerpt = post.getBody().length() > 220 ? post.getBody().substring(0, 220) + "…" : post.getBody();
         long commentCount = commentRepository.countByPostId(post.getId());
         return new PostSummaryDto(

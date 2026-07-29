@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import VoteButtons from "@/components/VoteButtons";
 import Avatar from "@/components/Avatar";
 import { timeAgo } from "@/lib/timeAgo";
-import { isPostSaved, toggleSavedPost } from "@/lib/savedPosts";
+import { useSavedPosts } from "@/components/SavedPostsProvider";
 import { colorForSlug } from "@/lib/subforumTheme";
 
 function subforumLabel(slug) {
@@ -14,12 +13,13 @@ function subforumLabel(slug) {
 }
 
 export default function PostCard({ post, accentColor, showCommunity = true }) {
-  const [saved, setSaved] = useState(() => isPostSaved(post.id));
+  const { isSaved, toggle } = useSavedPosts();
+  const saved = isSaved(post.id);
   const communityColor = accentColor || colorForSlug(post.subforumSlug);
 
   function handleSave(e) {
     e.preventDefault();
-    setSaved(toggleSavedPost(post.id));
+    toggle(post.id);
   }
 
   async function handleShare(e) {

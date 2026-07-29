@@ -54,6 +54,12 @@ public class NotificationService {
                 actorAlias + " mentioned you: " + truncate(preview), postSlug, subforumSlug);
     }
 
+    @Transactional
+    public void notifyFollow(Long recipientProfileId, Long actorProfileId, String actorAlias) {
+        create(recipientProfileId, actorProfileId, NotificationType.FOLLOW, actorAlias,
+                actorAlias + " started following you", null, null);
+    }
+
     private void create(
             Long recipientProfileId, Long actorProfileId, NotificationType type, String actorAlias,
             String message, String postSlug, String subforumSlug

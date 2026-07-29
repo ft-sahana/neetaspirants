@@ -1,12 +1,14 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
+import { SavedPostsProvider } from "@/components/SavedPostsProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import WaveBackground from "@/components/WaveBackground";
 import Sidebar from "@/components/Sidebar";
 import BottomNav from "@/components/BottomNav";
 import MobileTopBar from "@/components/MobileTopBar";
 import FloatingHelpChat from "@/components/FloatingHelpChat";
+import HeartbeatTracker from "@/components/HeartbeatTracker";
 
 const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -35,16 +37,19 @@ export default function RootLayout({ children }) {
       <body className={`${geist.variable} ${geistMono.variable} h-full antialiased`}>
         <ThemeProvider>
           <AuthProvider>
-            <WaveBackground />
-            <div className="relative flex min-h-full">
-              <Sidebar />
-              <div className="flex min-w-0 flex-1 flex-col md:pl-64">
-                <MobileTopBar />
-                <main className="flex-1 pb-20 md:pb-0">{children}</main>
+            <SavedPostsProvider>
+              <WaveBackground />
+              <div className="relative flex min-h-full">
+                <Sidebar />
+                <div className="flex min-w-0 flex-1 flex-col md:pl-64">
+                  <MobileTopBar />
+                  <main className="flex-1 pb-20 md:pb-0">{children}</main>
+                </div>
+                <BottomNav />
+                <FloatingHelpChat />
+                <HeartbeatTracker />
               </div>
-              <BottomNav />
-              <FloatingHelpChat />
-            </div>
+            </SavedPostsProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

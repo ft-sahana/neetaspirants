@@ -25,6 +25,14 @@ public class AnonymousProfile {
     @Column(nullable = false, unique = true)
     private String alias;
 
+    @Column(length = 280)
+    private String bio;
+
+    // Nullable at the DB level on purpose (same ddl-auto=update/MySQL-strict-mode
+    // backfill gotcha as Notification.read): default to 0 in service code, not here.
+    @Column(name = "total_active_seconds")
+    private Long totalActiveSeconds;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 }
