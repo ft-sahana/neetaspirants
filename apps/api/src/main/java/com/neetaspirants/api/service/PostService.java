@@ -9,6 +9,7 @@ import com.neetaspirants.api.repository.AnonymousProfileRepository;
 import com.neetaspirants.api.repository.CommentRepository;
 import com.neetaspirants.api.repository.PostRepository;
 import com.neetaspirants.api.repository.SubforumRepository;
+import com.neetaspirants.api.security.InputSanitizer;
 import com.neetaspirants.api.web.ApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,8 @@ public class PostService {
     private final QdrantClient qdrantClient;
     private final NotificationService notificationService;
     private final MentionParser mentionParser;
+    private final ModerationService moderationService;
+    private final StressService stressService;
 
     public PostService(
             PostRepository postRepository,
@@ -47,7 +50,9 @@ public class PostService {
             EmbeddingClient embeddingClient,
             QdrantClient qdrantClient,
             NotificationService notificationService,
-            MentionParser mentionParser
+            MentionParser mentionParser,
+            ModerationService moderationService,
+            StressService stressService
     ) {
         this.postRepository = postRepository;
         this.subforumRepository = subforumRepository;
@@ -58,6 +63,8 @@ public class PostService {
         this.qdrantClient = qdrantClient;
         this.notificationService = notificationService;
         this.mentionParser = mentionParser;
+        this.moderationService = moderationService;
+        this.stressService = stressService;
     }
 
     @Transactional(readOnly = true)
@@ -99,14 +106,19 @@ public class PostService {
         Post post = new Post();
         post.setSubforum(subforum);
         post.setAuthorProfile(profile);
-        post.setTitle(request.title());
-        post.setBody(request.body());
+        post.setTitle(InputSanitizer.stripHtml(request.title()));
+        post.setBody(InputSanitizer.stripHtml(request.body()));
         post.setImageUrl(request.imageUrl());
         post.setSlug(slugGenerator.generateUnique(request.title(), postRepository::existsBySlug));
         post = postRepository.save(post);
 
         indexForSearch(post);
         notifyMentions(post, profile);
+        moderationService.flagPostIfIrrelevant(
+                post.getId(), subforum.getName(), subforum.getDescription(), subforum.getRules(),
+                post.getTitle(), post.getBody()
+        );
+        stressService.recordStress(profile.getId(), post.getTitle() + ". " + post.getBody());
 
         return new PostDetailDto(
                 post.getId(), post.getSlug(), post.getTitle(), post.getBody(), post.getImageUrl(),

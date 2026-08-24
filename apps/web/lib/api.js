@@ -16,6 +16,7 @@ export async function apiFetch(path, { token, ...options } = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
+    credentials: "include",
     cache: "no-store",
   });
 
@@ -28,6 +29,25 @@ export async function apiFetch(path, { token, ...options } = {}) {
   return body;
 }
 
+export async function refreshAccessToken() {
+  const res = await fetch(`${API_BASE}/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const body = await res.json().catch(() => null);
+  return body?.token || null;
+}
+
+export async function logoutRequest() {
+  await fetch(`${API_BASE}/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+  }).catch(() => {});
+}
+
 export async function uploadImage(file, token) {
   const formData = new FormData();
   formData.append("file", file);
@@ -35,6 +55,7 @@ export async function uploadImage(file, token) {
   const res = await fetch(`${API_BASE}/uploads/image`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
     body: formData,
   });
 

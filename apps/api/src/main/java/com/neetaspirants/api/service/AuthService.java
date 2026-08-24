@@ -3,6 +3,7 @@ package com.neetaspirants.api.service;
 import com.neetaspirants.api.domain.AnonymousProfile;
 import com.neetaspirants.api.domain.User;
 import com.neetaspirants.api.dto.AuthDtos.AuthResponse;
+import com.neetaspirants.api.dto.AuthDtos.AuthResult;
 import com.neetaspirants.api.repository.AnonymousProfileRepository;
 import com.neetaspirants.api.repository.UserRepository;
 import com.neetaspirants.api.security.JwtService;
@@ -20,23 +21,26 @@ public class AuthService {
     private final AliasGenerator aliasGenerator;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
 
     public AuthService(
             UserRepository userRepository,
             AnonymousProfileRepository profileRepository,
             AliasGenerator aliasGenerator,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService
+            JwtService jwtService,
+            RefreshTokenService refreshTokenService
     ) {
         this.userRepository = userRepository;
         this.profileRepository = profileRepository;
         this.aliasGenerator = aliasGenerator;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Transactional
-    public AuthResponse signup(String email, String rawPassword) {
+    public AuthResult signup(String email, String rawPassword) {
         if (userRepository.existsByEmail(email)) {
             throw new ApiException(HttpStatus.CONFLICT, "An account with this email already exists");
         }
@@ -51,12 +55,11 @@ public class AuthService {
         profile.setAlias(aliasGenerator.generate());
         profile = profileRepository.save(profile);
 
-        String token = jwtService.issueToken(user.getId(), profile.getId(), profile.getAlias());
-        return new AuthResponse(token, profile.getId(), profile.getAlias());
+        return issueResult(user, profile);
     }
 
-    @Transactional(readOnly = true)
-    public AuthResponse login(String email, String rawPassword) {
+    @Transactional
+    public AuthResult login(String email, String rawPassword) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
 
@@ -64,10 +67,43 @@ public class AuthService {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
 
+        if (user.isSuspended()) {
+            String reason = user.getSuspendedReason();
+            String message = "Your account has been suspended" + (reason != null && !reason.isBlank() ? ": " + reason : ".");
+            throw new ApiException(HttpStatus.FORBIDDEN, message);
+        }
+
         AnonymousProfile profile = profileRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Profile missing for user"));
 
-        String token = jwtService.issueToken(user.getId(), profile.getId(), profile.getAlias());
-        return new AuthResponse(token, profile.getId(), profile.getAlias());
+        return issueResult(user, profile);
+    }
+
+    @Transactional
+    public AuthResult refresh(String rawRefreshToken) {
+        Long userId = refreshTokenService.rotate(rawRefreshToken)
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Invalid or expired refresh token"));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Invalid or expired refresh token"));
+
+        if (user.isSuspended()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Your account has been suspended");
+        }
+
+        AnonymousProfile profile = profileRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Profile missing for user"));
+
+        return issueResult(user, profile);
+    }
+
+    public void logout(String rawRefreshToken) {
+        refreshTokenService.revoke(rawRefreshToken);
+    }
+
+    private AuthResult issueResult(User user, AnonymousProfile profile) {
+        String accessToken = jwtService.issueToken(user.getId(), profile.getId(), profile.getAlias(), user.getRole().name());
+        String refreshToken = refreshTokenService.issue(user.getId());
+        return new AuthResult(new AuthResponse(accessToken, profile.getId(), profile.getAlias()), refreshToken);
     }
 }

@@ -8,6 +8,7 @@ import com.neetaspirants.api.dto.ForumDtos.CreateCommentRequest;
 import com.neetaspirants.api.repository.AnonymousProfileRepository;
 import com.neetaspirants.api.repository.CommentRepository;
 import com.neetaspirants.api.repository.PostRepository;
+import com.neetaspirants.api.security.InputSanitizer;
 import com.neetaspirants.api.web.ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -23,19 +24,22 @@ public class CommentService {
     private final AnonymousProfileRepository profileRepository;
     private final NotificationService notificationService;
     private final MentionParser mentionParser;
+    private final StressService stressService;
 
     public CommentService(
             CommentRepository commentRepository,
             PostRepository postRepository,
             AnonymousProfileRepository profileRepository,
             NotificationService notificationService,
-            MentionParser mentionParser
+            MentionParser mentionParser,
+            StressService stressService
     ) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.profileRepository = profileRepository;
         this.notificationService = notificationService;
         this.mentionParser = mentionParser;
+        this.stressService = stressService;
     }
 
     @Transactional
@@ -48,7 +52,7 @@ public class CommentService {
         Comment comment = new Comment();
         comment.setPost(post);
         comment.setAuthorProfile(profile);
-        comment.setBody(request.body());
+        comment.setBody(InputSanitizer.stripHtml(request.body()));
 
         Comment parent = null;
         if (request.parentCommentId() != null) {
@@ -61,6 +65,7 @@ public class CommentService {
 
         notifyReply(post, parent, profile, comment);
         notifyMentions(post, profile, comment.getBody());
+        stressService.recordStress(profile.getId(), comment.getBody());
 
         return new CommentDto(
                 comment.getId(), comment.getBody(), profile.getAlias(), comment.getScore(),

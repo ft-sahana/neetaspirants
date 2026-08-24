@@ -17,4 +17,6 @@ public class AuthDtos {
     ) {}
 
     public record AuthResponse(String token, Long profileId, String alias) {}
+
+    public record AuthResult(AuthResponse response, String refreshToken) {}
 }
