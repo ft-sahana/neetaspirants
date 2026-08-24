@@ -63,6 +63,24 @@ export default function NavIcon({ name, className = COMMON }) {
           <path d="M12 3v4M9 12h.01M15 12h.01" strokeLinecap="round" />
         </svg>
       );
+    case "wellness":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+          <path
+            d="M12 19.5s-7-4.4-7-9.6A4.4 4.4 0 0112 6.8a4.4 4.4 0 017 2.9c0 5.3-7 9.8-7 9.8z"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path d="M6.5 12h2.2l1.3-2.5 1.6 4 1.2-2.3H15" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "admin":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+          <path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M9.5 12l1.8 1.8L14.5 10" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
     default:
       return null;
   }

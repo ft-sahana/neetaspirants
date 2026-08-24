@@ -6,6 +6,8 @@ import Avatar from "@/components/Avatar";
 import { timeAgo } from "@/lib/timeAgo";
 import { useSavedPosts } from "@/components/SavedPostsProvider";
 import { colorForSlug } from "@/lib/subforumTheme";
+import { useAuth } from "@/components/AuthProvider";
+import { apiFetch, ApiError } from "@/lib/api";
 
 function subforumLabel(slug) {
   if (!slug) return "";
@@ -14,6 +16,7 @@ function subforumLabel(slug) {
 
 export default function PostCard({ post, accentColor, showCommunity = true }) {
   const { isSaved, toggle } = useSavedPosts();
+  const { token } = useAuth();
   const saved = isSaved(post.id);
   const communityColor = accentColor || colorForSlug(post.subforumSlug);
 
@@ -32,9 +35,24 @@ export default function PostCard({ post, accentColor, showCommunity = true }) {
     }
   }
 
-  function handleReport(e) {
+  async function handleReport(e) {
     e.preventDefault();
-    window.alert("Thanks — this post has been flagged for review.");
+    if (!token) {
+      window.alert("Log in to report a post.");
+      return;
+    }
+    const detail = window.prompt("What's wrong with this post? (optional)");
+    if (detail === null) return;
+    try {
+      await apiFetch(`/posts/${post.id}/report`, {
+        method: "POST",
+        token,
+        body: JSON.stringify({ reasonCode: "OTHER", detail: detail || null }),
+      });
+      window.alert("Thanks — this post has been flagged for review.");
+    } catch (err) {
+      window.alert(err instanceof ApiError ? err.message : "Failed to report this post");
+    }
   }
 
   return (

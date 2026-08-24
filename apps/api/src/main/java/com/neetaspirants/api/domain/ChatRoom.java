@@ -34,4 +34,13 @@ public class ChatRoom {
     private Instant lastActivityAt = Instant.now();
 
     private Instant scheduledFor;
+
+    /** Only meaningful for type == DM. Null for GROUP rooms. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "dm_status")
+    private DmStatus dmStatus;
+
+    /** Only meaningful for type == DM. Whoever created the room, so the other member is the recipient of the request. */
+    @Column(name = "dm_requested_by_profile_id")
+    private Long dmRequestedByProfileId;
 }

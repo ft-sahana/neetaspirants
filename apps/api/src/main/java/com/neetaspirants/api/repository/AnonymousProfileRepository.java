@@ -1,6 +1,8 @@
 package com.neetaspirants.api.repository;
 
 import com.neetaspirants.api.domain.AnonymousProfile;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -11,4 +13,5 @@ public interface AnonymousProfileRepository extends JpaRepository<AnonymousProfi
     Optional<AnonymousProfile> findByUserId(Long userId);
     Optional<AnonymousProfile> findByAlias(String alias);
     List<AnonymousProfile> findTop10ByAliasContainingIgnoreCaseAndIdNot(String alias, Long excludeId);
+    Page<AnonymousProfile> findByAliasContainingIgnoreCase(String alias, Pageable pageable);
 }

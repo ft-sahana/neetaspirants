@@ -8,12 +8,14 @@ import ThemeToggle from "@/components/ThemeToggle";
 import NavIcon from "@/components/NavIcons";
 import { NAV_ITEMS, isNavItemActive } from "@/lib/navItems";
 import { useUnreadNotifications } from "@/lib/useUnreadNotifications";
+import { useUnreadMessages } from "@/lib/useUnreadMessages";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { profile, ready, logout } = useAuth();
   const { theme } = useTheme();
   const unreadCount = useUnreadNotifications();
+  const unreadMessages = useUnreadMessages();
 
   return (
     <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-muted/20 bg-surface px-4 py-6 md:flex">
@@ -39,11 +41,28 @@ export default function Sidebar() {
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
+                {item.key === "messages" && unreadMessages > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-semibold leading-none text-on-accent">
+                    {unreadMessages > 9 ? "9+" : unreadMessages}
+                  </span>
+                )}
               </span>
               {item.label}
             </Link>
           );
         })}
+
+        {profile?.role === "ADMIN" && (
+          <Link
+            href="/admin"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+              pathname.startsWith("/admin") ? "bg-accent-muted text-ink" : "text-muted hover:bg-base hover:text-ink"
+            }`}
+          >
+            <NavIcon name="admin" />
+            Admin
+          </Link>
+        )}
       </nav>
 
       <div className="mt-auto flex flex-col gap-3 border-t border-muted/20 pt-4">

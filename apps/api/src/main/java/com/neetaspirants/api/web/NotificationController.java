@@ -6,6 +6,7 @@ import com.neetaspirants.api.security.AuthenticatedProfile;
 import com.neetaspirants.api.service.NotificationService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,5 +36,10 @@ public class NotificationController {
     @PostMapping("/mark-all-read")
     public void markAllRead(@AuthenticationPrincipal AuthenticatedProfile principal) {
         notificationService.markAllRead(principal.profileId());
+    }
+
+    @PostMapping("/{id}/mark-read")
+    public void markRead(@AuthenticationPrincipal AuthenticatedProfile principal, @PathVariable Long id) {
+        notificationService.markRead(principal.profileId(), id);
     }
 }

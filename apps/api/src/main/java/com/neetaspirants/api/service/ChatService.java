@@ -3,6 +3,7 @@ package com.neetaspirants.api.service;
 import com.neetaspirants.api.domain.*;
 import com.neetaspirants.api.dto.ChatDtos.*;
 import com.neetaspirants.api.repository.*;
+import com.neetaspirants.api.security.InputSanitizer;
 import com.neetaspirants.api.web.ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -23,19 +24,22 @@ public class ChatService {
     private final ChatMessageRepository messageRepository;
     private final AnonymousProfileRepository profileRepository;
     private final RoomPresenceService presenceService;
+    private final NotificationService notificationService;
 
     public ChatService(
             ChatRoomRepository roomRepository,
             ChatRoomMemberRepository memberRepository,
             ChatMessageRepository messageRepository,
             AnonymousProfileRepository profileRepository,
-            RoomPresenceService presenceService
+            RoomPresenceService presenceService,
+            NotificationService notificationService
     ) {
         this.roomRepository = roomRepository;
         this.memberRepository = memberRepository;
         this.messageRepository = messageRepository;
         this.profileRepository = profileRepository;
         this.presenceService = presenceService;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -138,10 +142,41 @@ public class ChatService {
 
         ChatRoom room = new ChatRoom();
         room.setType(ChatRoomType.DM);
+        room.setDmStatus(DmStatus.PENDING);
+        room.setDmRequestedByProfileId(profileId);
         room = roomRepository.save(room);
         addMember(room, profileId);
         addMember(room, otherProfileId);
         return toDto(room, profileId);
+    }
+
+    @Transactional
+    public ChatRoomDto acceptDm(Long roomId, Long profileId) {
+        ChatRoom room = requirePendingDmForRecipient(roomId, profileId);
+        room.setDmStatus(DmStatus.ACCEPTED);
+        roomRepository.save(room);
+        return toDto(room, profileId);
+    }
+
+    @Transactional
+    public void declineDm(Long roomId, Long profileId) {
+        requirePendingDmForRecipient(roomId, profileId);
+        messageRepository.deleteByRoomId(roomId);
+        memberRepository.deleteByRoomId(roomId);
+        roomRepository.deleteById(roomId);
+    }
+
+    private ChatRoom requirePendingDmForRecipient(Long roomId, Long profileId) {
+        ChatRoom room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Room not found"));
+        if (room.getType() != ChatRoomType.DM || room.getDmStatus() != DmStatus.PENDING) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "This conversation isn't a pending request");
+        }
+        requireMembership(roomId, profileId);
+        if (profileId.equals(room.getDmRequestedByProfileId())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "You can't accept or decline your own request");
+        }
+        return room;
     }
 
     @Transactional(readOnly = true)
@@ -154,6 +189,11 @@ public class ChatService {
 
     public PresenceEvent getPresence(Long roomId) {
         return new PresenceEvent(presenceService.onlineAliases(roomId));
+    }
+
+    @Transactional(readOnly = true)
+    public long unreadMessageCount(Long profileId) {
+        return notificationService.unreadMessageCount(profileId);
     }
 
     @Transactional
@@ -170,19 +210,45 @@ public class ChatService {
             }
         }
 
+        if (room.getType() == ChatRoomType.DM
+                && room.getDmStatus() == DmStatus.PENDING
+                && !senderProfileId.equals(room.getDmRequestedByProfileId())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Accept this conversation before replying");
+        }
+
         var sender = profileRepository.findById(senderProfileId)
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Profile not found"));
 
         ChatMessage message = new ChatMessage();
         message.setRoom(room);
         message.setSenderProfile(sender);
-        message.setBody(body);
+        message.setBody(InputSanitizer.stripHtml(body));
         message = messageRepository.save(message);
 
         room.setLastActivityAt(message.getCreatedAt());
         roomRepository.save(room);
 
+        if (room.getType() == ChatRoomType.DM) {
+            notifyDmRecipient(room, senderProfileId, sender.getAlias(), body);
+        }
+
         return toDto(message);
+    }
+
+    private void notifyDmRecipient(ChatRoom room, Long senderProfileId, String senderAlias, String body) {
+        Long recipientProfileId = memberRepository.findByRoomId(room.getId()).stream()
+                .map(m -> m.getProfile().getId())
+                .filter(id -> !id.equals(senderProfileId))
+                .findFirst()
+                .orElse(null);
+        if (recipientProfileId == null) return;
+
+        long messageCount = messageRepository.countByRoomId(room.getId());
+        if (messageCount <= 1) {
+            notificationService.notifyDmRequest(recipientProfileId, senderProfileId, senderAlias, room.getId());
+        } else {
+            notificationService.notifyMessage(recipientProfileId, senderProfileId, senderAlias, room.getId(), body);
+        }
     }
 
     private void requireMembership(Long roomId, Long profileId) {
@@ -226,10 +292,18 @@ public class ChatService {
                     .map(AnonymousProfile::getAlias)
                     .orElse(null);
         }
+        boolean requestedByViewer = viewerProfileId != null && viewerProfileId.equals(room.getDmRequestedByProfileId());
+
+        var lastMessage = messageRepository.findFirstByRoomIdOrderByCreatedAtDesc(room.getId()).orElse(null);
+        String lastMessagePreview = lastMessage != null ? lastMessage.getBody() : null;
+        String lastMessageSenderAlias = lastMessage != null ? lastMessage.getSenderProfile().getAlias() : null;
+
         return new ChatRoomDto(
                 room.getId(), room.getType().name(), room.getName(), room.getTopic(), room.getCategory(),
                 room.getCreatedAt(), lastActivityOrCreated(room), room.getScheduledFor(),
-                memberCount, onlineCount, onlineCount > 0, otherAlias
+                memberCount, onlineCount, onlineCount > 0, otherAlias,
+                room.getDmStatus() != null ? room.getDmStatus().name() : null, requestedByViewer,
+                lastMessagePreview, lastMessageSenderAlias
         );
     }
 

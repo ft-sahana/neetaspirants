@@ -56,6 +56,12 @@ export default function AssistantPage() {
   const [error, setError] = useState(null);
   const bottomRef = useRef(null);
 
+  // Message timestamps render via toLocaleTimeString, which can differ between
+  // the server's locale and the browser's — deferring until after mount avoids
+  // a hydration mismatch (React error #418) from that text not matching.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   // Restore this profile's saved conversation, if any, before we start persisting.
   useEffect(() => {
     if (!profile) return;
@@ -154,7 +160,7 @@ export default function AssistantPage() {
                 }`}
               >
                 {m.content}
-                {m.at && (
+                {m.at && mounted && (
                   <div className={`mt-1 text-[10px] ${m.role === "user" ? "text-on-accent/70" : "text-muted"}`}>
                     {formatTime(m.at)}
                   </div>

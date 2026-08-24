@@ -2,7 +2,9 @@ export const NAV_ITEMS = [
   { key: "home", label: "Home", href: "/home", icon: "home" },
   { key: "communities", label: "Communities", href: "/c", icon: "communities" },
   { key: "rooms", label: "Rooms", href: "/rooms", icon: "rooms" },
+  { key: "messages", label: "Messages", href: "/chat", icon: "messages" },
   { key: "notifications", label: "Notifications", href: "/notifications", icon: "notifications" },
+  { key: "wellness", label: "Wellness", href: "/wellness", icon: "wellness" },
   { key: "profile", label: "Profile", href: "/profile", icon: "profile" },
   { key: "assistant", label: "AI Assistant", href: "/assistant", icon: "assistant" },
 ];

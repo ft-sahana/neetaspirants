@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import VoteButtons from "@/components/VoteButtons";
 
@@ -10,6 +10,21 @@ export default function CommentThread({ comment, postId, onReply }) {
   const [replying, setReplying] = useState(false);
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  async function handleReport() {
+    const detail = window.prompt("What's wrong with this comment? (optional)");
+    if (detail === null) return;
+    try {
+      await apiFetch(`/comments/${comment.id}/report`, {
+        method: "POST",
+        token,
+        body: JSON.stringify({ reasonCode: "OTHER", detail: detail || null }),
+      });
+      window.alert("Thanks — this comment has been flagged for review.");
+    } catch (err) {
+      window.alert(err instanceof ApiError ? err.message : "Failed to report this comment");
+    }
+  }
 
   async function submitReply(e) {
     e.preventDefault();
@@ -37,12 +52,17 @@ export default function CommentThread({ comment, postId, onReply }) {
         <p className="mt-1 text-sm text-ink">{comment.body}</p>
 
         {profile && (
-          <button
-            onClick={() => setReplying((r) => !r)}
-            className="mt-1 text-xs text-muted hover:text-accent"
-          >
-            Reply
-          </button>
+          <div className="mt-1 flex gap-3">
+            <button
+              onClick={() => setReplying((r) => !r)}
+              className="text-xs text-muted hover:text-accent"
+            >
+              Reply
+            </button>
+            <button onClick={handleReport} className="text-xs text-muted hover:text-accent">
+              Report
+            </button>
+          </div>
         )}
 
         {replying && (

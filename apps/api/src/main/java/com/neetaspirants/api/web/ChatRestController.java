@@ -56,6 +56,27 @@ public class ChatRestController {
         return chatService.getOrCreateDm(principal.profileId(), request.otherProfileId());
     }
 
+    @PostMapping("/rooms/{roomId}/accept")
+    public ChatRoomDto acceptDm(
+            @AuthenticationPrincipal AuthenticatedProfile principal,
+            @PathVariable Long roomId
+    ) {
+        return chatService.acceptDm(roomId, principal.profileId());
+    }
+
+    @PostMapping("/rooms/{roomId}/decline")
+    public void declineDm(
+            @AuthenticationPrincipal AuthenticatedProfile principal,
+            @PathVariable Long roomId
+    ) {
+        chatService.declineDm(roomId, principal.profileId());
+    }
+
+    @GetMapping("/unread-count")
+    public UnreadCountDto unreadCount(@AuthenticationPrincipal AuthenticatedProfile principal) {
+        return new UnreadCountDto(chatService.unreadMessageCount(principal.profileId()));
+    }
+
     @GetMapping("/rooms/{roomId}/messages")
     public List<ChatMessageDto> history(
             @AuthenticationPrincipal AuthenticatedProfile principal,

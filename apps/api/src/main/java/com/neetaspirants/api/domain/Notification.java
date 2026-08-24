@@ -40,6 +40,10 @@ public class Notification {
     @Column(name = "subforum_slug")
     private String subforumSlug;
 
+    /** Deep-link target for chat notifications (DM_REQUEST / MESSAGE). Nullable for all other types. */
+    @Column(name = "chat_room_id")
+    private Long chatRoomId;
+
     // Nullable at the DB level on purpose: with ddl-auto=update, adding a NOT NULL
     // column against a MySQL table in strict mode fails to backfill existing rows
     // ("Data truncation" on ALTER TABLE). Default to unread in the Java field and

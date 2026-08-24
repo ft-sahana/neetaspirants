@@ -19,6 +19,14 @@
   --color-accent: #ec7195;
   --color-accent-muted: #4c4a78;
   --color-on-accent: #140f1f;
+
+  /* Sequential stress ramp — one hue (the accent), light->dark, validated
+     with the dataviz skill's six-checks validator (ordinal mode). */
+  --stress-empty: #2f2a45;
+  --stress-calm: #9c2752;
+  --stress-steady: #b74168;
+  --stress-stressed: #d35a7f;
+  --stress-overwhelmed: #ef7397;
 }
 
 [data-theme="light"] {
@@ -29,6 +37,12 @@
   --color-accent: #d6417a;
   --color-accent-muted: #ece9fa;
   --color-on-accent: #140f1f;
+
+  --stress-empty: #f1eef7;
+  --stress-calm: #ff82b6;
+  --stress-steady: #f15b90;
+  --stress-stressed: #c6316d;
+  --stress-overwhelmed: #9c004c;
 }
 
 body {

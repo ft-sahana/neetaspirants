@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import { NOTIFICATIONS_CHANGED_EVENT } from "@/lib/notificationEvents";
 
 const POLL_INTERVAL_MS = 30000;
 
-/** Polls the unread notification count while a profile is logged in. */
+/** Polls the unread notification count while a profile is logged in, and
+ * refetches immediately whenever a notification is marked read elsewhere. */
 export function useUnreadNotifications() {
   const { token, profile, ready } = useAuth();
   const [count, setCount] = useState(0);
@@ -28,9 +30,11 @@ export function useUnreadNotifications() {
 
     load();
     const interval = setInterval(load, POLL_INTERVAL_MS);
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, load);
     return () => {
       cancelled = true;
       clearInterval(interval);
+      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, load);
     };
   }, [authed, token]);
 
