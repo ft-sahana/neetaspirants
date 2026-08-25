@@ -30,17 +30,20 @@ public class AuthController {
     private final AuthService authService;
     private final RateLimiter rateLimiter;
     private final boolean cookieSecure;
+    private final String cookieSameSite;
     private final long refreshExpirationDays;
 
     public AuthController(
             AuthService authService,
             RateLimiter rateLimiter,
             @Value("${app.cookie.secure}") boolean cookieSecure,
+            @Value("${app.cookie.same-site}") String cookieSameSite,
             @Value("${app.refresh-token.expiration-days}") long refreshExpirationDays
     ) {
         this.authService = authService;
         this.rateLimiter = rateLimiter;
         this.cookieSecure = cookieSecure;
+        this.cookieSameSite = cookieSameSite;
         this.refreshExpirationDays = refreshExpirationDays;
     }
 
@@ -104,7 +107,7 @@ public class AuthController {
         return ResponseCookie.from(REFRESH_COOKIE_NAME, value)
                 .httpOnly(true)
                 .secure(cookieSecure)
-                .sameSite("Lax")
+                .sameSite(cookieSameSite)
                 .path("/api/v1/auth")
                 .maxAge(maxAge)
                 .build();
