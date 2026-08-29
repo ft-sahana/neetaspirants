@@ -20,4 +20,7 @@ public interface VoteRepository extends JpaRepository<Vote, Long> {
             "SELECT COALESCE(SUM(v.value), 0) FROM Vote v WHERE v.votableType = :type AND v.votableId = :votableId"
     )
     int sumScoreFor(VotableType type, Long votableId);
+
+    void deleteByVotableTypeAndVotableId(VotableType votableType, Long votableId);
+    void deleteByVotableTypeAndVotableIdIn(VotableType votableType, List<Long> votableIds);
 }

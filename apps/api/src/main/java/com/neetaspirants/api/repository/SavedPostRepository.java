@@ -10,4 +10,5 @@ public interface SavedPostRepository extends JpaRepository<SavedPost, Long> {
     boolean existsByProfileIdAndPostId(Long profileId, Long postId);
     Optional<SavedPost> findByProfileIdAndPostId(Long profileId, Long postId);
     List<SavedPost> findTop50ByProfileIdOrderByCreatedAtDesc(Long profileId);
+    void deleteByPostId(Long postId);
 }

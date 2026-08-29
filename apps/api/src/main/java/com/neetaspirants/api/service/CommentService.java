@@ -3,11 +3,13 @@ package com.neetaspirants.api.service;
 import com.neetaspirants.api.domain.AnonymousProfile;
 import com.neetaspirants.api.domain.Comment;
 import com.neetaspirants.api.domain.Post;
+import com.neetaspirants.api.domain.VotableType;
 import com.neetaspirants.api.dto.ForumDtos.CommentDto;
 import com.neetaspirants.api.dto.ForumDtos.CreateCommentRequest;
 import com.neetaspirants.api.repository.AnonymousProfileRepository;
 import com.neetaspirants.api.repository.CommentRepository;
 import com.neetaspirants.api.repository.PostRepository;
+import com.neetaspirants.api.repository.VoteRepository;
 import com.neetaspirants.api.security.InputSanitizer;
 import com.neetaspirants.api.web.ApiException;
 import org.springframework.http.HttpStatus;
@@ -22,6 +24,7 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final AnonymousProfileRepository profileRepository;
+    private final VoteRepository voteRepository;
     private final NotificationService notificationService;
     private final MentionParser mentionParser;
     private final StressService stressService;
@@ -30,6 +33,7 @@ public class CommentService {
             CommentRepository commentRepository,
             PostRepository postRepository,
             AnonymousProfileRepository profileRepository,
+            VoteRepository voteRepository,
             NotificationService notificationService,
             MentionParser mentionParser,
             StressService stressService
@@ -37,6 +41,7 @@ public class CommentService {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.profileRepository = profileRepository;
+        this.voteRepository = voteRepository;
         this.notificationService = notificationService;
         this.mentionParser = mentionParser;
         this.stressService = stressService;
@@ -101,6 +106,17 @@ public class CommentService {
         if (!comment.getAuthorProfile().getId().equals(requestingProfileId)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "You can only delete your own comments");
         }
+        deleteCommentAndReplies(comment);
+    }
+
+    /** Replies form a self-referencing FK chain (parent_comment_id) with no DB-level cascade,
+     * so a comment's replies must be removed first, deepest first. */
+    @Transactional
+    public void deleteCommentAndReplies(Comment comment) {
+        for (Comment reply : commentRepository.findByParentCommentId(comment.getId())) {
+            deleteCommentAndReplies(reply);
+        }
+        voteRepository.deleteByVotableTypeAndVotableId(VotableType.COMMENT, comment.getId());
         commentRepository.delete(comment);
     }
 }

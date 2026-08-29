@@ -4,11 +4,14 @@ import com.neetaspirants.api.domain.AnonymousProfile;
 import com.neetaspirants.api.domain.Comment;
 import com.neetaspirants.api.domain.Post;
 import com.neetaspirants.api.domain.Subforum;
+import com.neetaspirants.api.domain.VotableType;
 import com.neetaspirants.api.dto.ForumDtos.*;
 import com.neetaspirants.api.repository.AnonymousProfileRepository;
 import com.neetaspirants.api.repository.CommentRepository;
 import com.neetaspirants.api.repository.PostRepository;
+import com.neetaspirants.api.repository.SavedPostRepository;
 import com.neetaspirants.api.repository.SubforumRepository;
+import com.neetaspirants.api.repository.VoteRepository;
 import com.neetaspirants.api.security.InputSanitizer;
 import com.neetaspirants.api.web.ApiException;
 import org.slf4j.Logger;
@@ -33,6 +36,8 @@ public class PostService {
     private final SubforumRepository subforumRepository;
     private final AnonymousProfileRepository profileRepository;
     private final CommentRepository commentRepository;
+    private final SavedPostRepository savedPostRepository;
+    private final VoteRepository voteRepository;
     private final SlugGenerator slugGenerator;
     private final EmbeddingClient embeddingClient;
     private final QdrantClient qdrantClient;
@@ -46,6 +51,8 @@ public class PostService {
             SubforumRepository subforumRepository,
             AnonymousProfileRepository profileRepository,
             CommentRepository commentRepository,
+            SavedPostRepository savedPostRepository,
+            VoteRepository voteRepository,
             SlugGenerator slugGenerator,
             EmbeddingClient embeddingClient,
             QdrantClient qdrantClient,
@@ -58,6 +65,8 @@ public class PostService {
         this.subforumRepository = subforumRepository;
         this.profileRepository = profileRepository;
         this.commentRepository = commentRepository;
+        this.savedPostRepository = savedPostRepository;
+        this.voteRepository = voteRepository;
         this.slugGenerator = slugGenerator;
         this.embeddingClient = embeddingClient;
         this.qdrantClient = qdrantClient;
@@ -145,6 +154,21 @@ public class PostService {
         if (!post.getAuthorProfile().getId().equals(requestingProfileId)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "You can only delete your own posts");
         }
+        deletePostAndDependents(post);
+    }
+
+    /** Comments and saved-post entries have real FK constraints on post_id with no DB-level
+     * cascade, so they must be cleared before the post itself can be deleted. */
+    @Transactional
+    public void deletePostAndDependents(Post post) {
+        List<Long> commentIds = commentRepository.findByPostIdOrderByCreatedAtAsc(post.getId())
+                .stream().map(Comment::getId).toList();
+        if (!commentIds.isEmpty()) {
+            voteRepository.deleteByVotableTypeAndVotableIdIn(VotableType.COMMENT, commentIds);
+        }
+        voteRepository.deleteByVotableTypeAndVotableId(VotableType.POST, post.getId());
+        savedPostRepository.deleteByPostId(post.getId());
+        commentRepository.deleteByPostId(post.getId());
         postRepository.delete(post);
     }
 

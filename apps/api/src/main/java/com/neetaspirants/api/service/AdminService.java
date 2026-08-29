@@ -33,19 +33,25 @@ public class AdminService {
     private final CommentRepository commentRepository;
     private final UserRepository userRepository;
     private final AnonymousProfileRepository profileRepository;
+    private final PostService postService;
+    private final CommentService commentService;
 
     public AdminService(
             ReportRepository reportRepository,
             PostRepository postRepository,
             CommentRepository commentRepository,
             UserRepository userRepository,
-            AnonymousProfileRepository profileRepository
+            AnonymousProfileRepository profileRepository,
+            PostService postService,
+            CommentService commentService
     ) {
         this.reportRepository = reportRepository;
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.userRepository = userRepository;
         this.profileRepository = profileRepository;
+        this.postService = postService;
+        this.commentService = commentService;
     }
 
     @Transactional(readOnly = true)
@@ -109,9 +115,9 @@ public class AdminService {
         Report report = getOpenReport(reportId);
 
         if (report.getTargetType() == ReportTargetType.POST) {
-            postRepository.findById(report.getTargetId()).ifPresent(postRepository::delete);
+            postRepository.findById(report.getTargetId()).ifPresent(postService::deletePostAndDependents);
         } else {
-            commentRepository.findById(report.getTargetId()).ifPresent(commentRepository::delete);
+            commentRepository.findById(report.getTargetId()).ifPresent(commentService::deleteCommentAndReplies);
         }
 
         resolveAllOpenReportsForTarget(report.getTargetType(), report.getTargetId(), adminUserId);
