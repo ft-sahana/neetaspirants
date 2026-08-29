@@ -11,6 +11,10 @@ function storageKey(profileId) {
   return `${STORAGE_PREFIX}${profileId}`;
 }
 
+function greetingMessage() {
+  return { role: "assistant", content: GREETING, at: new Date().toISOString() };
+}
+
 function SparkleIcon({ className = "h-4 w-4" }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -49,7 +53,7 @@ function formatTime(iso) {
 
 export default function AssistantPage() {
   const { token, profile, ready } = useAuth();
-  const [messages, setMessages] = useState(() => [{ role: "assistant", content: GREETING, at: new Date().toISOString() }]);
+  const [messages, setMessages] = useState(() => [greetingMessage()]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -63,14 +67,21 @@ export default function AssistantPage() {
   useEffect(() => setMounted(true), []);
 
   // Restore this profile's saved conversation, if any, before we start persisting.
+  // Also resets on logout (profile -> null) or account switch, so a previous
+  // user's chat never lingers on screen or leaks into the next session.
   useEffect(() => {
-    if (!profile) return;
+    if (!profile) {
+      setMessages([greetingMessage()]);
+      setHistoryLoaded(false);
+      return;
+    }
     try {
       const raw = localStorage.getItem(storageKey(profile.profileId));
       const saved = raw ? JSON.parse(raw) : null;
-      if (Array.isArray(saved) && saved.length > 0) setMessages(saved);
+      setMessages(Array.isArray(saved) && saved.length > 0 ? saved : [greetingMessage()]);
     } catch {
       // Corrupt or unavailable storage — fall back to the default greeting.
+      setMessages([greetingMessage()]);
     }
     setHistoryLoaded(true);
   }, [profile]);
